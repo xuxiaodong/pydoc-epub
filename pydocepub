@@ -1,0 +1,67 @@
+#!/bin/bash
+#
+# name     : pydocepub, automatically build epub format of python documents
+# author   : Xu Xiaodong <xxdlhy@gmail.com>
+# license  : GPL
+# created  : 2014 Jun 15
+# modified : 2014 Jun 15
+#
+
+PY_VERSION="$1"
+DOC_TYPE="$2"
+HG_REPO="http://hg.python.org/releasing/${PY_VERSION}/"
+HG_BIN=$(which hg)
+
+if [ $# != 2 ]; then
+    echo "Usage: $0 <python version> <document type>"
+    echo "Example:"
+    echo "$0 2.7.7 library"
+    echo "$0 2.7.7 tutorial"
+    exit 1
+fi
+
+if [ -z $HG_BIN ]; then
+    echo "You need to install Mercurial."
+    exit 2
+fi
+
+if [ ! -d $PY_VERSION ]; then
+    $HG_BIN clone $HG_REPO
+fi
+
+cd $PY_VERSION
+
+if [ ! -d $DOC_TYPE ]; then
+    mkdir $DOC_TYPE
+fi
+
+CURRENT_DIR=$(pwd)
+CONF="$CURRENT_DIR/$DOC_TYPE/conf.py"
+CONTENTS="$CURRENT_DIR/$DOC_TYPE/contents.rst"
+
+for SRC in Makefile data includes tools; do
+    ln -sf "$CURRENT_DIR/Doc/$SRC" "$CURRENT_DIR/$DOC_TYPE/$SRC"
+done
+
+cp "$CURRENT_DIR/Doc/conf.py" "$CONF"
+cp -r "$CURRENT_DIR/Doc/$DOC_TYPE" "$CURRENT_DIR/$DOC_TYPE"
+
+sed -i -e "32,33s/^/#/" "$CONF"
+sed -i -e "143,146s/^/#/" "$CONF"
+sed -i -e "s/^# version.*$/version = '$PY_VERSION'/" "$CONF"
+sed -i -e "s/^# release.*$/release = '$PY_VERSION'/" "$CONF"
+
+cat > "$CONTENTS" <<END
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+ Python Documentation contents
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+.. toctree::
+
+   ${DOC_TYPE}/index.rst
+END
+
+cd $DOC_TYPE
+make epub
+
+exit 0
